@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Swarm & Automation Workflow Engine</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        n8n: {
+                            bg: '#121319',
+                            sidebar: '#181a24',
+                            card: '#1e202e',
+                            border: '#2e3248',
+                            orange: '#ff6d5a',
+                            orangeHover: '#e05947',
+                            green: '#20c997',
+                            blue: '#3b82f6',
+                            purple: '#8b5cf6',
+                            yellow: '#f59e0b',
+                            text: '#e2e8f0',
+                            muted: '#94a3b8'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'Fira Code', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #121319;
+            color: #e2e8f0;
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #181a24;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #2e3248;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #ff6d5a;
+        }
+        .node-active {
+            box-shadow: 0 0 15px rgba(255, 109, 90, 0.5);
+            border-color: #ff6d5a !important;
+        }
+        .node-success {
+            box-shadow: 0 0 12px rgba(32, 201, 151, 0.4);
+            border-color: #20c997 !important;
+        }
+        .connection-line {
+            stroke-dasharray: 6;
+            animation: dash 1.5s linear infinite;
+        }
+        @keyframes dash {
+            to {
+                stroke-dashoffset: -24;
+            }
+        }
+        .pulse-glow {
+            animation: pulse-glow-anim 2s infinite;
+        }
+        @keyframes pulse-glow-anim {
+            0% { box-shadow: 0 0 0 0 rgba(255, 109, 90, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(255, 109, 90, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 109, 90, 0); }
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden text-sm select-none">
+
+    <!-- Top Navigation Header -->
+    <header class="h-14 bg-n8n-sidebar border-b border-n8n-border px-4 flex items-center justify-between z-20">
+        <div class="flex items-center space-x-4">
+            <div class="flex items-center space-x-2 text-n8n-orange font-bold text-lg">
+                <i class="fa-solid fa-diagram-project text-xl"></i>
+                <span class="tracking-wide">AutoFlow AI</span>
+            </div>
+            <span class="text-n8n-border">|</span>
+            <div class="flex items-center space-x-2 bg-n8n-card px-3 py-1.5 rounded-lg border border-n8n-border text-xs">
+                <i class="fa-solid fa-user-gear text-n8n-muted"></i>
+                <span class="text-n8n-muted">Personal /</span>
+                <span id="active-system-title" class="font-semibold text-white">Canada Super shop - AI Swarm & Web Intelligence</span>
+            </div>
+        </div>
+
+        <!-- Mode / System Switcher Tabs -->
+        <div class="flex items-center space-x-1 bg-n8n-bg p-1 rounded-lg border border-n8n-border">
+            <button onclick="switchSystem('sys1')" id="tab-sys1" class="px-3 py-1.5 rounded-md text-xs font-medium transition-all bg-n8n-orange text-white shadow-sm flex items-center gap-2">
+                <i class="fa-solid fa-brain"></i>
+                <span>Sys 1: AI Swarm & Web Intel</span>
+            </button>
+            <button onclick="switchSystem('sys2')" id="tab-sys2" class="px-3 py-1.5 rounded-md text-xs font-medium transition-all text-n8n-muted hover:text-white flex items-center gap-2">
+                <i class="fa-solid fa-hashtag"></i>
+                <span>Sys 2: Social & Insta Content</span>
+            </button>
+            <button onclick="switchSystem('credentials')" id="tab-credentials" class="px-3 py-1.5 rounded-md text-xs font-medium transition-all text-n8n-muted hover:text-white flex items-center gap-2">
+                <i class="fa-solid fa-key"></i>
+                <span>Credentials</span>
+            </button>
+            <button onclick="switchSystem('logs')" id="tab-logs" class="px-3 py-1.5 rounded-md text-xs font-medium transition-all text-n8n-muted hover:text-white flex items-center gap-2">
+                <i class="fa-solid fa-list-check"></i>
+                <span>Logs</span>
+            </button>
+        </div>
+
+        <!-- Action Header Control -->
+        <div class="flex items-center space-x-3">
+            <div class="flex items-center space-x-2 text-xs text-n8n-muted bg-n8n-card px-2.5 py-1 rounded border border-n8n-border">
+                <span class="inline-block w-2 h-2 rounded-full bg-n8n-green animate-pulse"></span>
+                <span>Workflow Active</span>
+            </div>
+            <button onclick="runCurrentWorkflow()" id="execute-btn" class="bg-n8n-orange hover:bg-n8n-orangeHover text-white font-semibold px-4 py-1.5 rounded-lg transition shadow flex items-center gap-2 active:scale-95">
+                <i class="fa-solid fa-play text-xs"></i>
+                <span>Execute Workflow</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content Workspace Container -->
+    <div class="flex-1 flex overflow-hidden relative">
+
+        <!-- Left Sidebar Navigation -->
+        <aside class="w-16 bg-n8n-sidebar border-r border-n8n-border flex flex-col items-center py-4 justify-between z-10">
+            <div class="flex flex-col space-y-6 items-center w-full">
+                <button onclick="switchSystem('sys1')" title="AI Swarm Canvas" class="p-3 text-n8n-muted hover:text-n8n-orange hover:bg-n8n-card rounded-xl transition">
+                    <i class="fa-solid fa-diagram-next text-lg"></i>
+                </button>
+                <button onclick="switchSystem('sys2')" title="Social Automation Canvas" class="p-3 text-n8n-muted hover:text-n8n-orange hover:bg-n8n-card rounded-xl transition">
+                    <i class="fa-solid fa-share-nodes text-lg"></i>
+                </button>
+                <button onclick="toggleLeadSimulator()" title="Live Lead Ingestion Simulator" class="p-3 text-n8n-muted hover:text-n8n-orange hover:bg-n8n-card rounded-xl transition relative">
+                    <i class="fa-solid fa-paper-plane text-lg"></i>
+                    <span class="absolute top-2 right-2 w-2 h-2 bg-n8n-orange rounded-full"></span>
+                </button>
+                <button onclick="switchSystem('credentials')" title="API Credentials" class="p-3 text-n8n-muted hover:text-n8n-orange hover:bg-n8n-card rounded-xl transition">
+                    <i class="fa-solid fa-key text-lg"></i>
+                </button>
+                <button onclick="switchSystem('logs')" title="Executions Log" class="p-3 text-n8n-muted hover:text-n8n-orange hover:bg-n8n-card rounded-xl transition">
+                    <i class="fa-solid fa-clock-rotate-left text-lg"></i>
+                </button>
+            </div>
+            <div class="flex flex-col space-y-4 items-center">
+                <button onclick="showHelpModal()" class="p-2 text-n8n-muted hover:text-white text-base">
+                    <i class="fa-regular fa-circle-question"></i>
+                </button>
+                <div class="w-8 h-8 rounded-full bg-n8n-purple flex items-center justify-center font-bold text-xs text-white">
+                    AI
+                </div>
+            </div>
+        </aside>
+
+        <!-- Canvas Area / Dynamic Views -->
+        <main class="flex-1 bg-n8n-bg relative overflow-auto p-6" id="canvas-container">
+
+            <!-- ================= VIEW: SYSTEM 1 WORKFLOW CANVAS ================= -->
+            <div id="view-sys1" class="workflow-view min-w-[1200px] h-full flex flex-col justify-between relative">
+                <div class="absolute top-2 left-2 bg-n8n-card/90 backdrop-blur border border-n8n-border p-3 rounded-lg z-10">
+                    <div class="text-xs font-bold text-n8n-orange uppercase tracking-wider mb-1">System 1 Architecture</div>
+                    <div class="text-xs text-n8n-muted">Autonomous RAG Retrieval, Web Scraper, AI Swarm Reasoner & Multi-Channel Dispatch</div>
+                </div>
+
+                <!-- Workflow Node Visual Grid (Simulated n8n Canvas) -->
+                <div class="grid grid-cols-5 gap-8 my-auto relative py-12 px-6">
+                    
+                    <!-- SVG Connection Lines -->
+                    <svg class="absolute inset-0 w-full h-full pointer-events-none z-0">
+                        <!-- Custom connected path elements with dynamic status styling -->
+                        <path id="line1-2" d="M 180 120 L 260 120" stroke="#2e3248" stroke-width="2" fill="none"/>
+                        <path id="line2-3" d="M 420 120 L 500 120" stroke="#2e3248" stroke-width="2" fill="none"/>
+                        <path id="line3-4" d="M 660 120 L 740 120" stroke="#2e3248" stroke-width="2" fill="none"/>
+                        <path id="line4-5" d="M 900 120 L 980 120" stroke="#2e3248" stroke-width="2" fill="none"/>
+                    </svg>
+
+                    <!-- Column 1: Webhook & Audio Ingest -->
+                    <div class="flex flex-col space-y-6 z-10">
+                        <div id="node-s1-1" class="bg-n8n-card border-2 border-n8n-border rounded-xl p-4 transition-all duration-300 relative group">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-xs font-semibold text-n8n-green flex items-center gap-1.5">
+                                    <i class="fa-brands fa-whatsapp"></i> WhatsApp Ingestion
+                                </span>
+                                <span class="status-badge text-[10px] bg-n8n-border text-n8n-muted px-2 py-0.5 rounded">Idle</span>
+                            </div>
+                            <div class="text-xs font-bold text-white mb-1">Signed API Webhook</div>
+                            <div class="text-[11px] text-n8n-muted truncate">Parse Payload HMAC & Voice Notes</div>
+                        </div>
+
+                        <div id="node-s1-1b" class="bg-n8n-card border-2 border-n8n-border rounded-xl p-4 transition-all duration-300 relative group">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-xs font-semibold text-n8n-purple flex items-center gap-1.5">
+                                    <i class="fa-solid fa-microphone"></i> Audio Processing
+                                </span>
+                                <span class="status-badge text-[10px] bg-n8n-border text-n8n-muted px-2 py-0.5 rounded">Idle</span>
+                            </div>
+                            <div class="text-xs font-bold text-white mb-1">Whisper Voice Transcribe</div>
+                            <div class="text-[11px] text-n8n-muted truncate">Convert voice note to text query</div>
+                        </div>
+                    </div>
+
+                    <!-- Column 2: Web Intelligence & Deep Search -->
+                    <div class="flex flex-col space-y-6 justify-center z-10">
+                        <div id="node-s1-2" class="bg-n8n-card border-2 border-n8n-border rounded-xl p-4 transition-all duration-300 relative group">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-xs font-semibold text-n8n-blue flex items-center gap-1.5">
+                                    <i class="fa-solid fa-globe"></i> Web Intelligence
+                                </span>
+                                <span class="status-badge text-[10px] bg-n8n-border text-n8n-muted px-2 py-0.5 rounded">Idle</span>
+                            </div>
+                            <div class="text-xs font-bold text-white mb-1">Tavily & SerpAPI Google</div>
+                            <div class="text-[11px] text-n8n-muted truncate">Deep Search & Extract Top URLs</div>
+                        </div>
+                    </div>
+
+                    <!-- Column 3: Scraping & Content Cleaning -->
+                    <div class="flex flex-col space-y-6 justify-center z-10">
+                        <div id="node-s1-3" class="bg-n8n-card border-2 border-n8n-border rounded-xl p-4 transition-all duration-300 relative group">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-xs font-semibold text-n8n-yellow flex items-center gap-1.5">
+                                    <i class="fa-solid fa-code"></i> Data Extraction
+                                </span>
+                                <span class="status-badge text-[10px] bg-n8n-border text-n8n-muted px-2 py-0.5 rounded">Idle</span>
+                            </div>
+                            <div class="text-xs font-bold text-white mb-1">HTML Scraper & Cleaner</div>
+                            <div class="text-[11px] text-n8n-muted truncate">Extract DOM, normalize text, parse HTML</div>
+                        </div>
+                    </div>
+
+                    <!-- Column 4: AI Swarm Reasoner -->
+                    <div class="flex flex-col space-y-6 justify-center z-10">
+                        <div id="node-s1-4" class="bg-n8n-card border-2 border-n8n-border rounded-xl p-4 transition-all duration-300 relative group">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-xs font-semibold text-n8n-orange flex items-center gap-1.5">
+                                    <i class="fa-solid fa-robot"></i> AI Swarm Engine
+                                </span>
+                                <span class="status-badge text-[10px] bg-n8n-border text-n8n-muted px-2 py-0.5 rounded">Idle</span>
+                            </div>
+                            <div class="text-xs font-bold text-white mb-1">Autonomous LLM Swarm</div>
+                            <div class="text-[11px] text-n8n-muted truncate">Claude/GPT-4 Lead Scoring & Strategy</div>
+                        </div>
+                    </div>
+
+                    <!-- Column 5: Multi-Channel Alerts & S3 Storage -->
+                    <div class="flex flex-col space-y-6 justify-center z-10">
+                        <div id="node-s1-5" class="bg-n8n-card border-2 border-n8n-border rounded-xl p-4 transition-all duration-300 relative group">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-xs font-semibold text-n8n-green flex items-center gap-1.5">
+                                    <i class="fa-solid fa-paper-plane"></i> Multi-Channel Alert
+                                </span>
+                                <span class="status-badge text-[10px] bg-n8n-border text-n8n-muted px-2 py-0.5 rounded">Idle</span>
+                            </div>
+                            <div class="text-xs font-bold text-white mb-1">PDF Lead Report Generator</div>
+                            <div class="text-[11px] text-n8n-muted truncate">Slack, Telegram & WhatsApp Push</div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Simulation Output Preview Drawer for System 1 -->
+                <div class="mt-4 bg-n8n-card rounded-xl border border-n8n-border p-4">
+                    <div class="flex items-center justify-between mb-3 border-b border-n8n-border pb-2">
+                        <div class="flex items-center space-x-2">
+                            <i class="fa-solid fa-terminal text-n8n-orange"></i>
+                            <span class="font-semibold text-xs text-white">System 1 Live Output Terminal</span>
+                        </div>
+                        <span id="s1-exec-time" class="text-[11px] text-n8n-muted">Execution Status: Ready</span>
+                    </div>
+                    <div id="s1-terminal-logs" class="font-mono text-xs text-n8n-text space-y-1 max-h-40 overflow-y-auto bg-n8n-bg p-3 rounded-lg border border-n8n-border">
+                        <div class="text-n8n-muted">&gt; System initialized. Awaiting lead incoming hook or manual trigger...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================= VIEW: SYSTEM 2 WORKFLOW CANVAS ================= -->
+            <div id="view-sys2" class="workflow-view hidden min-w-[1200px] h-full flex flex-col justify-between relative">
+                <div class="absolute top-2 left-2 bg-n8n-card/90 backdrop-blur border border-n8n-border p-3 rounded-lg z-10">
+                    <div class="text-xs font-bold text-n8n-orange uppercase tracking-wider mb-1">System 2 Architecture</div>
+                    <div class="text-xs text-n8n-muted">Instagram Trend Finder, Database Duplication Filter, AI Visual Generator & Publishing</div>
+                </div>
+
+                <div class="grid grid-cols-5 gap-8 my-auto relative py-12 px-6">
+
+                    <!-- Column 1: Schedule & Config -->
+                    <div class="flex flex-col space-y-6 justify-center z-10">
+                        <div id="node-s2-1" class="bg-n8n-card border-2 border-n8n-border rounded-xl p-4 transition-all duration-300 relative group">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-xs font-semibold text-n8n-purple flex items-center gap-1.5">
+                                    <i class="fa-regular fa-clock"></i> Trigger
+                                </span>
+                                <span class="status-badge text-[10px] bg-n8n-border text-n8n-muted px-2 py-0.5 rounded">Idle</span>
+                            </div>
+                            <div class="text-xs font-bold text-white mb-1">Schedule Cron Trigger</div>
+                            <div class="text-[11px] text-n8n-muted truncate">Runs every 6 hours automatically</div>
+                        </div>
+                    </div>
+
+                    <!-- Column 2: Trend Discovery -->
+                    <div class="flex flex-col space-y-6 justify-center z-10">
+                        <div id="node-s2-2" class="bg-n8n-card border-2 border-n8n-border rounded-xl p-4 transition-all duration-300 relative group">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-xs font-semibold text-n8n-pink-500 flex items-center gap-1.5" style="color: #ec4899">
+                                    <i class="fa-brands fa-instagram"></i> RapidAPI Trends
+                                </span>
+                                <span class="status-badge text-[10px] bg-n8n-border text-n8n-muted px-2 py-0.5 rounded">Idle</span>
+                            </div>
+                            <div class="text-xs font-bold text-white mb-1">Top Hashtag Trend Scanner</div>
+                            <div class="text-[11px] text-n8n-muted truncate">Fetch top viral posts on Instagram</div>
+                        </div>
+                    </div>
+
+                    <!-- Column 3: DB Filter -->
+                    <div class="flex flex-col space-y-6 justify-center z-10">
+                        <div id="node-s2-3" class="bg-n8n-card border-2 border-n8n-border rounded-xl p-4 transition-all duration-300 relative group">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-xs font-semibold text-n8n-blue flex items-center gap-1.5">
+                                    <i class="fa-solid fa-database"></i> Database Check
+                                </span>
+                                <span class="status-badge text-[10px] bg-n8n-border text-n8n-muted px-2 py-0.5 rounded">Idle</span>
+                            </div>
+                            <div class="text-xs font-bold text-white mb-1">De-duplication Verification</div>
+                            <div class="text-[11px] text-n8n-muted truncate">Query database if topic posted before</div>
+                        </div>
+                    </div>
+
+                    <!-- Column 4: AI Visual & Content Studio -->
+                    <div class="flex flex-col space-y-6 justify-center z-10">
+                        <div id="node-s2-4" class="bg-n8n-card border-2 border-n8n-border rounded-xl p-4 transition-all duration-300 relative group">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-xs font-semibold text-n8n-orange flex items-center gap-1.5">
+                                    <i class="fa-solid fa-wand-magic-sparkles"></i> AI Generator
+                                </span>
+                                <span class="status-badge text-[10px] bg-n8n-border text-n8n-muted px-2 py-0.5 rounded">Idle</span>
+                            </div>
+                            <div class="text-xs font-bold text-white mb-1">Flux Image & Caption Engine</div>
+                            <div class="text-[11px] text-n8n-muted truncate">Create high-converting graphics</div>
+                        </div>
+                    </div>
+
+                    <!-- Column 5: Instagram Publisher & WhatsApp -->
+                    <div class="flex flex-col space-y-6 justify-center z-10">
+                        <div id="node-s2-5" class="bg-n8n-card border-2 border-n8n-border rounded-xl p-4 transition-all duration-300 relative group">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-xs font-semibold text-n8n-green flex items-center gap-1.5">
+                                    <i class="fa-brands fa-instagram"></i> Publisher
+                                </span>
+                                <span class="status-badge text-[10px] bg-n8n-border text-n8n-muted px-2 py-0.5 rounded">Idle</span>
+                            </div>
+                            <div class="text-xs font-bold text-white mb-1">Post to Instagram & WhatsApp</div>
+                            <div class="text-[11px] text-n8n-muted truncate">Publish post & send manager alert</div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Simulation Output Terminal for System 2 -->
+                <div class="mt-4 bg-n8n-card rounded-xl border border-n8n-border p-4">
+                    <div class="flex items-center justify-between mb-3 border-b border-n8n-border pb-2">
+                        <div class="flex items-center space-x-2">
+                            <i class="fa-solid fa-terminal text-n8n-orange"></i>
+                            <span class="font-semibold text-xs text-white">System 2 Content Engine Terminal</span>
+                        </div>
+                        <span id="s2-exec-time" class="text-[11px] text-n8n-muted">Status: Idle</span>
+                    </div>
+                    <div id="s2-terminal-logs" class="font-mono text-xs text-n8n-text space-y-1 max-h-40 overflow-y-auto bg-n8n-bg p-3 rounded-lg border border-n8n-border">
+                        <div class="text-n8n-muted">&gt; Social media auto-publisher ready. Click 'Execute Workflow' to simulate a trend cycle.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================= VIEW: CREDENTIALS MANAGER ================= -->
+            <div id="view-credentials" class="workflow-view hidden max-w-4xl mx-auto space-y-6">
+                <div class="bg-n8n-card p-6 rounded-xl border border-n8n-border shadow-lg">
+                    <h2 class="text-lg font-bold text-white mb-2 flex items-center gap-2">
+                        <i class="fa-solid fa-key text-n8n-orange"></i> Integration Credentials Manager
+                    </h2>
+                    <p class="text-xs text-n8n-muted mb-6">Manage API Keys and Webhooks used by System 1 and System 2 nodes.</p>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="bg-n8n-bg p-4 rounded-lg border border-n8n-border">
+                            <label class="block text-xs font-semibold text-n8n-muted mb-1">OpenAI / Claude API Key</label>
+                            <input type="password" value="sk-proj-9923849102839102384" class="w-full bg-n8n-card border border-n8n-border rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-n8n-orange">
+                        </div>
+                        <div class="bg-n8n-bg p-4 rounded-lg border border-n8n-border">
+                            <label class="block text-xs font-semibold text-n8n-muted mb-1">WhatsApp Cloud API Token</label>
+                            <input type="password" value="EAAI283901823091823" class="w-full bg-n8n-card border border-n8n-border rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-n8n-orange">
+                        </div>
+                        <div class="bg-n8n-bg p-4 rounded-lg border border-n8n-border">
+                            <label class="block text-xs font-semibold text-n8n-muted mb-1">Tavily / SerpAPI Deep Search Key</label>
+                            <input type="password" value="tvly-live-8912301923" class="w-full bg-n8n-card border border-n8n-border rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-n8n-orange">
+                        </div>
+                        <div class="bg-n8n-bg p-4 rounded-lg border border-n8n-border">
+                            <label class="block text-xs font-semibold text-n8n-muted mb-1">Instagram Business API Token</label>
+                            <input type="password" value="IGQVJ82309182301923" class="w-full bg-n8n-card border border-n8n-border rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-n8n-orange">
+                        </div>
+                        <div class="bg-n8n-bg p-4 rounded-lg border border-n8n-border">
+                            <label class="block text-xs font-semibold text-n8n-muted mb-1">Supabase Database URL & Service Key</label>
+                            <input type="password" value="https://xyz.supabase.co" class="w-full bg-n8n-card border border-n8n-border rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-n8n-orange">
+                        </div>
+                        <div class="bg-n8n-bg p-4 rounded-lg border border-n8n-border">
+                            <label class="block text-xs font-semibold text-n8n-muted mb-1">AWS S3 Bucket Name (PDF Uploads)</label>
+                            <input type="text" value="canada-lead-gen-reports-bucket" class="w-full bg-n8n-card border border-n8n-border rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-n8n-orange">
+                        </div>
+                    </div>
+
+                    <div class="mt-6 flex justify-end">
+                        <button onclick="saveCredentials()" class="bg-n8n-green hover:opacity-90 text-white text-xs font-bold px-5 py-2.5 rounded-lg transition">
+                            Save Credentials Configuration
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================= VIEW: LOGS HISTORY ================= -->
+            <div id="view-logs" class="workflow-view hidden max-w-5xl mx-auto">
+                <div class="bg-n8n-card p-6 rounded-xl border border-n8n-border shadow-lg">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-clock-rotate-left text-n8n-orange"></i> Workflow Execution Logs
+                        </h2>
+                        <button onclick="clearLogs()" class="text-xs text-n8n-muted hover:text-white bg-n8n-bg px-3 py-1.5 rounded border border-n8n-border">
+                            Clear History
+                        </button>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="border-b border-n8n-border text-xs text-n8n-muted">
+                                    <th class="py-2 px-3">Execution ID</th>
+                                    <th class="py-2 px-3">System</th>
+                                    <th class="py-2 px-3">Trigger Source</th>
+                                    <th class="py-2 px-3">Status</th>
+                                    <th class="py-2 px-3">Duration</th>
+                                    <th class="py-2 px-3">Timestamp</th>
+                                </tr>
+                            </thead>
+                            <tbody id="logs-table-body" class="text-xs font-mono">
+                                <tr class="border-b border-n8n-border/50 hover:bg-n8n-bg/50">
+                                    <td class="py-2.5 px-3 text-n8n-orange">#EXEC-9821</td>
+                                    <td class="py-2.5 px-3">System 1 (AI Swarm)</td>
+                                    <td class="py-2.5 px-3">WhatsApp Hook</td>
+                                    <td class="py-2.5 px-3"><span class="bg-n8n-green/20 text-n8n-green px-2 py-0.5 rounded text-[10px]">SUCCESS</span></td>
+                                    <td class="py-2.5 px-3">2.41s</td>
+                                    <td class="py-2.5 px-3 text-n8n-muted">2026-10-22 10:18:12</td>
+                                </tr>
+                                <tr class="border-b border-n8n-border/50 hover:bg-n8n-bg/50">
+                                    <td class="py-2.5 px-3 text-n8n-orange">#EXEC-9820</td>
+                                    <td class="py-2.5 px-3">System 2 (Instagram)</td>
+                                    <td class="py-2.5 px-3">Cron Trigger</td>
+                                    <td class="py-2.5 px-3"><span class="bg-n8n-green/20 text-n8n-green px-2 py-0.5 rounded text-[10px]">SUCCESS</span></td>
+                                    <td class="py-2.5 px-3">3.89s</td>
+                                    <td class="py-2.5 px-3 text-n8n-muted">2026-10-22 08:00:00</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+
+        <!-- Right Side Panel: Live Lead Simulator & Inspector -->
+        <aside id="simulator-panel" class="w-96 bg-n8n-sidebar border-l border-n8n-border flex flex-col justify-between overflow-y-auto">
+            <div class="p-4 border-b border-n8n-border flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-flask text-n8n-orange"></i>
+                    <span class="font-bold text-xs uppercase tracking-wider text-white">Interactive Lead Simulator</span>
+                </div>
+                <button onclick="toggleLeadSimulator()" class="text-n8n-muted hover:text-white">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="p-4 space-y-5 flex-1">
+                
+                <!-- Lead Ingestion Channel Switch -->
+                <div>
+                    <label class="block text-xs font-semibold text-n8n-muted mb-2">Select Inbound Channel</label>
+                    <select id="sim-channel" class="w-full bg-n8n-card border border-n8n-border rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-n8n-orange">
+                        <option value="whatsapp">WhatsApp Text Message</option>
+                        <option value="voice">WhatsApp Voice Note (Audio Simulation)</option>
+                        <option value="web_form">Website Contact Webhook</option>
+                    </select>
+                </div>
+
+                <!-- Lead Form / Query Input -->
+                <div>
+                    <label class="block text-xs font-semibold text-n8n-muted mb-1">Lead Name & Phone</label>
+                    <input id="sim-name" type="text" value="Sarah Jenkins (+1 416 555 0192)" class="w-full bg-n8n-card border border-n8n-border rounded px-3 py-2 text-xs text-white mb-2">
+
+                    <label class="block text-xs font-semibold text-n8n-muted mb-1">Lead Inquiry Prompt / Search Query</label>
+                    <textarea id="sim-query" rows="3" class="w-full bg-n8n-card border border-n8n-border rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-n8n-orange">Looking for top Canadian commercial tax optimization strategies and corporate structure guidelines for 2026.</textarea>
+                </div>
+
+                <!-- Simulated Voice Note Controls (Audio Mock) -->
+                <div class="bg-n8n-card p-3 rounded-lg border border-n8n-border">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs text-n8n-muted flex items-center gap-1.5">
+                            <i class="fa-solid fa-microphone text-n8n-purple"></i> Voice Note Mock
+                        </span>
+                        <span class="text-[10px] text-n8n-muted">0:14 sec</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="playMockAudio()" id="audio-play-btn" class="w-8 h-8 rounded-full bg-n8n-purple flex items-center justify-center text-white text-xs">
+                            <i class="fa-solid fa-play"></i>
+                        </button>
+                        <div class="flex-1 bg-n8n-bg h-2 rounded-full overflow-hidden">
+                            <div id="audio-progress" class="w-0 h-full bg-n8n-purple transition-all duration-300"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Dispatch Simulation Button -->
+                <button onclick="triggerSimulatedLead()" class="w-full bg-n8n-orange hover:bg-n8n-orangeHover text-white font-bold py-2.5 rounded-lg transition shadow flex items-center justify-center gap-2 text-xs">
+                    <i class="fa-solid fa-paper-plane"></i>
+                    <span>Inject Simulated Lead to Engine</span>
+                </button>
+
+                <!-- Multi-Channel Notification Preview Box -->
+                <div class="border-t border-n8n-border pt-4">
+                    <label class="block text-xs font-semibold text-n8n-muted mb-2">Live Alert Preview Sandbox</label>
+                    
+                    <div class="space-y-3">
+                        <!-- Slack Preview -->
+                        <div class="bg-n8n-card p-2.5 rounded border border-n8n-border text-[11px]">
+                            <div class="flex items-center justify-between text-n8n-muted mb-1">
+                                <span class="font-bold text-n8n-text"><i class="fa-brands fa-slack text-n8n-purple"></i> #leads-alerts</span>
+                                <span>Just now</span>
+                            </div>
+                            <div id="slack-preview-text" class="text-n8n-muted italic">Awaiting qualified lead output...</div>
+                        </div>
+
+                        <!-- WhatsApp Preview -->
+                        <div class="bg-n8n-card p-2.5 rounded border border-n8n-border text-[11px]">
+                            <div class="flex items-center justify-between text-n8n-muted mb-1">
+                                <span class="font-bold text-n8n-green"><i class="fa-brands fa-whatsapp"></i> Executive WhatsApp Alert</span>
+                                <span>Just now</span>
+                            </div>
+                            <div id="whatsapp-preview-text" class="text-n8n-muted italic">Awaiting dispatch...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Downloadable PDF Report Mock Generator -->
+                <div id="pdf-report-box" class="hidden bg-n8n-card p-3 rounded-lg border border-n8n-green/40 bg-n8n-green/5">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-bold text-n8n-green flex items-center gap-1.5">
+                            <i class="fa-solid fa-file-pdf"></i> PDF Intelligence Report Ready
+                        </span>
+                    </div>
+                    <p class="text-[11px] text-n8n-muted mb-2">Report generated and uploaded to AWS S3 storage.</p>
+                    <button onclick="downloadMockPDF()" class="w-full bg-n8n-green/20 hover:bg-n8n-green/30 text-n8n-green border border-n8n-green/50 text-xs font-bold py-1.5 rounded transition flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-download"></i> Download Lead Analysis PDF
+                    </button>
+                </div>
+
+            </div>
+        </aside>
+
+    </div>
+
+    <!-- Help & System Info Modal -->
+    <div id="help-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-n8n-card border border-n8n-border rounded-xl max-w-lg w-full p-6 space-y-4">
+            <div class="flex justify-between items-center border-b border-n8n-border pb-3">
+                <h3 class="font-bold text-white text-base">Multi-System Automation Blueprint</h3>
+                <button onclick="closeHelpModal()" class="text-n8n-muted hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="text-xs text-n8n-muted space-y-2 leading-relaxed">
+                <p>This workspace accurately models the two core automation workflows provided in your system designs:</p>
+                <ul class="list-disc pl-5 space-y-1 text-n8n-text">
+                    <li><strong class="text-n8n-orange">System 1 (AI Swarm & Web Intelligence):</strong> Ingests voice & text webhooks, executes web search (Tavily/SerpAPI), extracts web evidence, evaluates with AI reasoning agents, builds PDF reports, and alerts WhatsApp/Slack.</li>
+                    <li><strong class="text-n8n-orange">System 2 (Instagram Social Lead Gen):</strong> Scans top trending posts, filters database duplicates, triggers Flux visual generation, and automates multi-channel publishing.</li>
+                </ul>
+            </div>
+            <div class="flex justify-end pt-2">
+                <button onclick="closeHelpModal()" class="bg-n8n-orange text-white text-xs font-bold px-4 py-2 rounded-lg">Got it</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application JavaScript Logic -->
+    <script>
+        // Global State
+        let currentSystem = 'sys1';
+        let isExecuting = false;
+
+        // System Switcher Function
+        function switchSystem(sysId) {
+            currentSystem = sysId;
+
+            // Hide all workflow canvas views
+            document.querySelectorAll('.workflow-view').forEach(el => el.classList.add('hidden'));
+            
+            // Tab highlight updates
+            ['sys1', 'sys2', 'credentials', 'logs'].forEach(tab => {
+                const btn = document.getElementById(`tab-${tab}`);
+                if (btn) {
+                    btn.classList.remove('bg-n8n-orange', 'text-white');
+                    btn.classList.add('text-n8n-muted');
+                }
+            });
+
+            const activeBtn = document.getElementById(`tab-${sysId}`);
+            if (activeBtn) {
+                activeBtn.classList.add('bg-n8n-orange', 'text-white');
+                activeBtn.classList.remove('text-n8n-muted');
+            }
+
+            // Title update
+            const titleEl = document.getElementById('active-system-title');
+            if (sysId === 'sys1') {
+                document.getElementById('view-sys1').classList.remove('hidden');
+                titleEl.textContent = 'Canada Super shop - AI Swarm & Web Intelligence';
+            } else if (sysId === 'sys2') {
+                document.getElementById('view-sys2').classList.remove('hidden');
+                titleEl.textContent = 'Generate Instagram Content from Top Trends';
+            } else if (sysId === 'credentials') {
+                document.getElementById('view-credentials').classList.remove('hidden');
+                titleEl.textContent = 'System Credentials & API Keys Manager';
+            } else if (sysId === 'logs') {
+                document.getElementById('view-logs').classList.remove('hidden');
+                titleEl.textContent = 'Global Execution & Trigger History Logs';
+            }
+        }
+
+        // Toggle Right Drawer Panel
+        function toggleLeadSimulator() {
+            const panel = document.getElementById('simulator-panel');
+            panel.classList.toggle('hidden');
+        }
+
+        // Simulation Trigger for Current Active System
+        async function runCurrentWorkflow() {
+            if (isExecuting) return;
+            isExecuting = true;
+            
+            const btn = document.getElementById('execute-btn');
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-xs"></i><span>Running...</span>`;
+            btn.classList.add('opacity-75');
+
+            if (currentSystem === 'sys1') {
+                await simulateSystem1Execution();
+            } else if (currentSystem === 'sys2') {
+                await simulateSystem2Execution();
+            } else {
+                appendLog('sys1-terminal-logs', '> Switch to System 1 or System 2 canvas to execute workflow simulation.');
+            }
+
+            btn.innerHTML = `<i class="fa-solid fa-play text-xs"></i><span>Execute Workflow</span>`;
+            btn.classList.remove('opacity-75');
+            isExecuting = false;
+        }
+
+        // System 1 Execution Step Simulator
+        async function simulateSystem1Execution() {
+            const logBox = document.getElementById('s1-terminal-logs');
+            logBox.innerHTML = '';
+            
+            const query = document.getElementById('sim-query').value || "Canadian commercial tax optimization";
+
+            const steps = [
+                { id: 'node-s1-1', text: '> [Node 1] Ingesting Webhook payload & HMAC signature verified.', delay: 600 },
+                { id: 'node-s1-1b', text: '> [Node 1b] Audio transcription: Voice note converted to text query.', delay: 700 },
+                { id: 'node-s1-2', text: `> [Node 2] Querying Tavily & SerpAPI for: "${query.substring(0, 35)}..."`, delay: 1000 },
+                { id: 'node-s1-3', text: '> [Node 3] Scraping top 5 search result URLs. Cleaned DOM & extracted 4,200 words evidence.', delay: 900 },
+                { id: 'node-s1-4', text: '> [Node 4] AI Swarm (Claude 3.5 Sonnet) evaluated lead score: 92/100 (HIGH INTENT).', delay: 1200 },
+                { id: 'node-s1-5', text: '> [Node 5] PDF Report compiled, uploaded to S3, and sent to WhatsApp & Slack alerts.', delay: 800 }
+            ];
+
+            for (const step of steps) {
+                const nodeEl = document.getElementById(step.id);
+                if (nodeEl) {
+                    nodeEl.classList.add('node-active');
+                    const badge = nodeEl.querySelector('.status-badge');
+                    if (badge) {
+                        badge.textContent = 'Running';
+                        badge.className = 'status-badge text-[10px] bg-n8n-orange/20 text-n8n-orange px-2 py-0.5 rounded';
+                    }
+                }
+
+                appendLog('s1-terminal-logs', step.text);
+                await new Promise(r => setTimeout(r, step.delay));
+
+                if (nodeEl) {
+                    nodeEl.classList.remove('node-active');
+                    nodeEl.classList.add('node-success');
+                    const badge = nodeEl.querySelector('.status-badge');
+                    if (badge) {
+                        badge.textContent = 'Done';
+                        badge.className = 'status-badge text-[10px] bg-n8n-green/20 text-n8n-green px-2 py-0.5 rounded';
+                    }
+                }
+            }
+
+            // Update live alert boxes
+            document.getElementById('slack-preview-text').innerHTML = `<strong class="text-white">New Hot Lead Detected:</strong> ${document.getElementById('sim-name').value}<br><span class="text-n8n-green">Score: 92/100</span> - Intent: Tax Structure Optimization`;
+            document.getElementById('whatsapp-preview-text').innerHTML = `🚨 <strong>Lead Alert:</strong> Sarah Jenkins inquired about tax structure. PDF report generated & attached.`;
+            document.getElementById('pdf-report-box').classList.remove('hidden');
+
+            addExecutionLogRecord('System 1 (AI Swarm)', 'Manual Sandbox', 'SUCCESS', '4.2s');
+        }
+
+        // System 2 Execution Step Simulator
+        async function simulateSystem2Execution() {
+            const logBox = document.getElementById('s2-terminal-logs');
+            logBox.innerHTML = '';
+
+            const steps = [
+                { id: 'node-s2-1', text: '> [Trigger] Cron schedule triggered Instagram Content pipeline.', delay: 500 },
+                { id: 'node-s2-2', text: '> [RapidAPI] Scraped top trending hashtags: #TaxEfficiency2026 #BusinessGrowth.', delay: 900 },
+                { id: 'node-s2-3', text: '> [Supabase] Checked database. Topic "2026 Corporate Tax Hacks" is unique.', delay: 600 },
+                { id: 'node-s2-4', text: '> [AI Studio] Generated Flux AI image graphic & high-converting carousel caption.', delay: 1300 },
+                { id: 'node-s2-5', text: '> [Instagram Graph API] Post successfully published! WhatsApp confirmation dispatched.', delay: 800 }
+            ];
+
+            for (const step of steps) {
+                const nodeEl = document.getElementById(step.id);
+                if (nodeEl) {
+                    nodeEl.classList.add('node-active');
+                    const badge = nodeEl.querySelector('.status-badge');
+                    if (badge) {
+                        badge.textContent = 'Running';
+                        badge.className = 'status-badge text-[10px] bg-n8n-orange/20 text-n8n-orange px-2 py-0.5 rounded';
+                    }
+                }
+
+                appendLog('s2-terminal-logs', step.text);
+                await new Promise(r => setTimeout(r, step.delay));
+
+                if (nodeEl) {
+                    nodeEl.classList.remove('node-active');
+                    nodeEl.classList.add('node-success');
+                    const badge = nodeEl.querySelector('.status-badge');
+                    if (badge) {
+                        badge.textContent = 'Done';
+                        badge.className = 'status-badge text-[10px] bg-n8n-green/20 text-n8n-green px-2 py-0.5 rounded';
+                    }
+                }
+            }
+
+            addExecutionLogRecord('System 2 (Instagram)', 'Cron Schedule', 'SUCCESS', '4.1s');
+        }
+
+        // Helper Log Appender
+        function appendLog(elementId, text) {
+            const box = document.getElementById(elementId);
+            const div = document.createElement('div');
+            div.className = "text-n8n-text py-0.5";
+            div.textContent = text;
+            box.appendChild(div);
+            box.scrollTop = box.scrollHeight;
+        }
+
+        // Simulated Audio Player
+        function playMockAudio() {
+            const btn = document.getElementById('audio-play-btn');
+            const progress = document.getElementById('audio-progress');
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i>`;
+
+            let w = 0;
+            const interval = setInterval(() => {
+                w += 10;
+                progress.style.width = `${w}%`;
+                if (w >= 100) {
+                    clearInterval(interval);
+                    btn.innerHTML = `<i class="fa-solid fa-check text-n8n-green"></i>`;
+                    setTimeout(() => {
+                        btn.innerHTML = `<i class="fa-solid fa-play"></i>`;
+                        progress.style.width = '0%';
+                    }, 1000);
+                }
+            }, 150);
+        }
+
+        // Lead Simulator Injection Trigger
+        function triggerSimulatedLead() {
+            switchSystem('sys1');
+            runCurrentWorkflow();
+        }
+
+        // Download Mock PDF
+        function downloadMockPDF() {
+            const text = "AUTOFLOW AI LEAD REPORT\nClient: Sarah Jenkins\nQuery: Canadian Commercial Tax Optimization\nScore: 92/100 (High Intent)\nGenerated via System 1 Web Swarm";
+            const blob = new Blob([text], { type: 'text/plain' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = "Lead_Intelligence_Report_SarahJenkins.txt";
+            a.click();
+        }
+
+        // Credentials Save
+        function saveCredentials() {
+            alert("Credentials updated and encrypted in local workspace vault!");
+        }
+
+        // Add Log Entry to Table
+        function addExecutionLogRecord(system, trigger, status, duration) {
+            const tbody = document.getElementById('logs-table-body');
+            const tr = document.createElement('tr');
+            tr.className = "border-b border-n8n-border/50 hover:bg-n8n-bg/50";
+            const randomId = Math.floor(1000 + Math.random() * 9000);
+            const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
+
+            tr.innerHTML = `
+                <td class="py-2.5 px-3 text-n8n-orange">#EXEC-${randomId}</td>
+                <td class="py-2.5 px-3">${system}</td>
+                <td class="py-2.5 px-3">${trigger}</td>
+                <td class="py-2.5 px-3"><span class="bg-n8n-green/20 text-n8n-green px-2 py-0.5 rounded text-[10px]">${status}</span></td>
+                <td class="py-2.5 px-3">${duration}</td>
+                <td class="py-2.5 px-3 text-n8n-muted">${now}</td>
+            `;
+            tbody.insertBefore(tr, tbody.firstChild);
+        }
+
+        // Clear Logs
+        function clearLogs() {
+            document.getElementById('logs-table-body').innerHTML = '';
+        }
+
+        // Modal Controls
+        function showHelpModal() {
+            document.getElementById('help-modal').classList.remove('hidden');
+        }
+        function closeHelpModal() {
+            document.getElementById('help-modal').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
